@@ -1,77 +1,102 @@
 "use client";
 import React, { useState, useRef } from 'react';
-import { Plus, Folder, MousePointer2, Pencil, Type, Image as ImageIcon } from 'lucide-react';
+import { Plus, Folder, MousePointer2, Pencil, Type, Image as ImageIcon, Heart } from 'lucide-react';
 
 export default function SimpleMiro() {
-  const [notes, setNotes] = useState([]); // Храним заметки/текст
-  const [tool, setTool] = useState('select'); // Текущий инструмент
-  const canvasRef = useRef(null);
+  const [tool, setTool] = useState('pencil');
+  const [lines, setLines] = useState([]);
+  const [isDrawing, setIsDrawing] = useState(false);
 
-  // Функция добавления новой заметки на доску
-  const addNote = (e) => {
-    if (tool !== 'type') return;
-    const rect = e.target.getBoundingClientRect();
-    const newNote = {
-      id: Date.now(),
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-      text: "Новая заметка...",
-      color: "#FFD1DC"
-    };
-    setNotes([...notes, newNote]);
+  const startDrawing = (e) => {
+    if (tool !== 'pencil') return;
+    setIsDrawing(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setLines([...lines, { points: [{ x: e.clientX - rect.left, y: e.clientY - rect.top }], color: '#FFB7C5' }]);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing || tool !== 'pencil') return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    let lastLine = lines[lines.length - 1];
+    lastLine.points.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setLines([...lines.slice(0, -1), lastLine]);
   };
 
   return (
-    <div className="flex h-screen w-full bg-[#FFF5F7] overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-[#FFF0F5] overflow-hidden m-0 p-0 font-sans">
       
-      {/* ЛЕВАЯ ПАНЕЛЬ: СОРТИРОВКА (Notion Style) */}
-      <aside className="w-72 bg-white/70 backdrop-blur-md border-r border-[#FFD1DC] p-6 flex flex-col">
-        <h2 className="text-[#8B4367] font-bold mb-6 flex items-center gap-2">
-          <Folder size={20} /> Проекты
-        </h2>
-        <div className="space-y-2 flex-1">
-          <div className="p-2 bg-[#FFD1DC]/40 rounded-lg text-sm cursor-pointer">🌸 Идеи для дома</div>
-          <div className="p-2 hover:bg-[#FFD1DC]/20 rounded-lg text-sm cursor-pointer transition-all">📝 Конспекты: IT</div>
+      {/* SIDEBAR — Теперь он точно будет слева */}
+      <aside className="w-72 bg-white/80 backdrop-blur-md border-r border-[#FFD1DC] p-6 flex flex-col z-20 shadow-xl">
+        <div className="flex items-center gap-2 mb-8 text-[#8B4367]">
+          <Heart fill="#FFB7C5" size={24} stroke="none" />
+          <h1 className="font-bold text-xl tracking-tight">Pink Board</h1>
         </div>
-        <button className="mt-auto flex items-center justify-center gap-2 bg-[#FFB7C5] text-white p-3 rounded-2xl hover:bg-[#FF8DA1] transition-all">
-          <Plus size={18} /> Новая папка
+
+        <div className="flex-1 space-y-4">
+          <p className="text-[10px] uppercase font-bold text-[#FFB7C5] tracking-widest px-2">Твои папки</p>
+          <div className="space-y-1">
+             <div className="flex items-center gap-3 p-3 bg-[#FFD1DC]/40 rounded-2xl text-[#8B4367] font-medium transition-all">
+                <Folder size={18} /> Идеи для дома
+             </div>
+             <div className="flex items-center gap-3 p-3 hover:bg-[#FFD1DC]/20 rounded-2xl text-[#8B4367]/70 transition-all cursor-pointer">
+                <Folder size={18} /> Конспекты: IT
+             </div>
+          </div>
+        </div>
+
+        <button className="flex items-center justify-center gap-2 bg-[#FFB7C5] text-white p-4 rounded-2xl hover:bg-[#FF8DA1] transition-all shadow-md active:scale-95">
+          <Plus size={20} /> Создать страницу
         </button>
       </aside>
 
-      {/* ОСНОВНАЯ ДОСКА */}
-      <main className="flex-1 relative bg-[url('https://www.transparenttextures.com/patterns/white-diamond.png')] cursor-crosshair"
-            onClick={addNote}>
-        
-        {/* ПАНЕЛЬ ИНСТРУМЕНТОВ */}
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 flex gap-4 bg-white/90 p-3 rounded-3xl shadow-xl border border-[#FFD1DC] z-50">
-          <button onClick={() => setTool('select')} className={`p-2 rounded-xl ${tool === 'select' ? 'bg-[#FFD1DC]' : ''}`}><MousePointer2 size={22} /></button>
-          <button onClick={() => setTool('pencil')} className={`p-2 rounded-xl ${tool === 'pencil' ? 'bg-[#FFD1DC]' : ''}`}><Pencil size={22} /></button>
-          <button onClick={() => setTool('type')} className={`p-2 rounded-xl ${tool === 'type' ? 'bg-[#FFD1DC]' : ''}`}><Type size={22} /></button>
-          <button className="p-2 hover:bg-[#FFF0F5] rounded-xl"><ImageIcon size={22} /></button>
+      {/* CANVAS — Основная рабочая зона */}
+      <main 
+        className="flex-1 relative bg-white m-4 rounded-[40px] shadow-inner overflow-hidden touch-none cursor-crosshair border-4 border-[#FFD1DC]/30"
+        onMouseDown={startDrawing}
+        onMouseMove={draw}
+        onMouseUp={() => setIsDrawing(false)}
+      >
+        {/* ПАНЕЛЬ ИНСТРУМЕНТОВ — Парит сверху */}
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 flex gap-3 bg-white/90 backdrop-blur-md p-3 rounded-3xl shadow-2xl border border-[#FFD1DC] z-50">
+          <ToolBtn active={tool==='select'} onClick={()=>setTool('select')} icon={<MousePointer2 size={20}/>} />
+          <ToolBtn active={tool==='pencil'} onClick={()=>setTool('pencil')} icon={<Pencil size={20}/>} />
+          <ToolBtn active={tool==='type'} onClick={()=>setTool('type')} icon={<Type size={20}/>} />
+          <div className="w-[1px] bg-[#FFD1DC] mx-1" />
+          <ToolBtn icon={<ImageIcon size={20}/>} />
         </div>
 
-        {/* ОТРЕНДЕРЕННЫЕ ЗАМЕТКИ */}
-        {notes.map(note => (
-          <div 
-            key={note.id}
-            style={{ left: note.x, top: note.y, backgroundColor: note.color }}
-            className="absolute p-4 shadow-md rounded-lg min-w-[150px] cursor-move border border-[#FFB7C5]/50 animate-in fade-in zoom-in duration-300"
-          >
-            <textarea 
-              className="bg-transparent border-none outline-none text-[#8B4367] resize-none w-full h-full text-sm placeholder-[#8B4367]/50"
-              defaultValue={note.text}
-              autoFocus
+        {/* SVG СЛОЙ ДЛЯ РИСОВАНИЯ */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none">
+          {lines.map((line, i) => (
+            <polyline
+              key={i}
+              points={line.points.map(p => `${p.x},${p.y}`).join(' ')}
+              fill="none"
+              stroke={line.color}
+              strokeWidth="4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
-          </div>
-        ))}
+          ))}
+        </svg>
 
-        {/* Слой для рисования (SVG или Canvas будет тут) */}
-        {tool === 'pencil' && (
-            <div className="absolute inset-0 pointer-events-none">
-                <p className="absolute bottom-10 left-10 text-[#FFB7C5] italic">Режим рисования активен...</p>
-            </div>
-        )}
+        {/* ПРИВЕТСТВИЕ */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+           <h2 className="text-4xl font-bold text-[#FFB7C5] rotate-[-5deg]">Начни рисовать здесь...</h2>
+        </div>
       </main>
     </div>
+  );
+}
+
+// Мини-компонент для кнопок инструментов
+function ToolBtn({ icon, active, onClick }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`p-3 rounded-2xl transition-all ${active ? 'bg-[#FFB7C5] text-white shadow-inner' : 'text-[#8B4367] hover:bg-[#FFF0F5]'}`}
+    >
+      {icon}
+    </button>
   );
 }
